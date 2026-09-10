@@ -1,4 +1,4 @@
-import os
+-import os
 import subprocess
 from flask import Flask, request, jsonify, render_template
 
@@ -81,7 +81,7 @@ def pip_install():
         return jsonify({"error": "Thieu ten package"}), 400
     try:
         result = subprocess.run(
-            ["pip", "install", "--user", package],
+            ["pip", "install" package],
             capture_output=True,
             text=True,
             timeout=90,
