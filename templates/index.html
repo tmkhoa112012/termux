@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Termux</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --panel: #141414;
+    --green: #8be04e;
+    --accent: #4fc3f7;
+    --border: #2a2a2a;
+    --red: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--green);
+    font-family: "Courier New", monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #1a1a1a;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 {
+    font-size: 15px;
+    margin: 0;
+    color: var(--accent);
+  }
+  header span { color: #888; font-size: 12px; }
+  .main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  .sidebar {
+    width: 230px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 12px;
+    overflow-y: auto;
+  }
+  .sidebar h2 {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    margin: 4px 0 10px;
+  }
+  .upload-box {
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: #aaa;
+  }
+  .upload-box input { display: none; }
+  .upload-box label {
+    cursor: pointer;
+    color: var(--accent);
+    display: block;
+  }
+  .file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    color: #ddd;
+  }
+  .file-item:hover { background: #1f1f1f; }
+  .file-item.active { background: #1f2e1f; color: var(--green); }
+  .file-item button {
+    background: none;
+    border: none;
+    color: var(--red);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .terminal-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+  }
+  #output {
+    flex: 1;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .prompt-line { color: var(--accent); }
+  .err-line { color: var(--red); }
+  .input-row {
+    display: flex;
+    margin-top: 8px;
+    gap: 6px;
+  }
+  .input-row span.p {
+    color: var(--accent);
+    align-self: center;
+    font-size: 13px;
+  }
+  #cmdInput {
+    flex: 1;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--green);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+  #cmdInput:focus { outline: 1px solid var(--accent); }
+  .btn-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  button.action {
+    background: #1f2e1f;
+    color: var(--green);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.action:hover { background: #2a3e2a; }
+  button.action:disabled { opacity: 0.5; cursor: default; }
+  .hint { color: #666; font-size: 11px; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&gt;_ Web Termux</h1>
+  <span id="statusText">san sang</span>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+    <h2>Upload file .py</h2>
+    <div class="upload-box">
+      <label for="fileInput">📂 Chon file .py de upload</label>
+      <input type="file" id="fileInput" accept=".py">
+    </div>
+    <h2>File cua ban</h2>
+    <div id="fileList"></div>
+  </div>
+
+  <div class="terminal-wrap">
+    <div id="output">Chao mung den voi Web Termux giả lập.
+Ban co the:
+  - Upload file .py o ben trai roi bam "Chay file"
+  - Go lenh shell truc tiep (vd: python3 --version, pip install requests)
+  - Go: pip install &lt;ten-thu-vien&gt; de cai thu vien
+
+Go lenh va nhan Enter de thuc thi.
+</div>
+    <div class="input-row">
+      <span class="p">$</span>
+      <input type="text" id="cmdInput" placeholder="vd: python3 script.py  hoac  pip install requests" autocomplete="off">
+    </div>
+    <div class="btn-row">
+      <button class="action" id="runBtn" disabled>▶ Chay file dang chon</button>
+      <button class="action" id="clearBtn">🧹 Xoa man hinh</button>
+      <button class="action" id="pyverBtn">🐍 Kiem tra Python</button>
+    </div>
+    <div class="hint">File duoc chay boi Python co san tren server (render.com). Lenh "pip install" se cai vao moi truong server.</div>
+  </div>
+</div>
+
+<script>
+const output = document.getElementById('output');
+const fileList = document.getElementById('fileList');
+const fileInput = document.getElementById('fileInput');
+const cmdInput = document.getElementById('cmdInput');
+const runBtn = document.getElementById('runBtn');
+const clearBtn = document.getElementById('clearBtn');
+const pyverBtn = document.getElementById('pyverBtn');
+const statusText = document.getElementById('statusText');
+
+let selectedFile = null;
+
+function log(text, cls) {
+  const span = document.createElement('div');
+  if (cls) span.className = cls;
+  span.textContent = text;
+  output.appendChild(span);
+  output.scrollTop = output.scrollHeight;
+}
+
+function setStatus(t) { statusText.textContent = t; }
+
+async function refreshFiles() {
+  const res = await fetch('/api/files');
+  const files = await res.json();
+  fileList.innerHTML = '';
+  files.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'file-item' + (f === selectedFile ? ' active' : '');
+    div.innerHTML = `<span>${f}</span><button title="Xoa">✕</button>`;
+    div.querySelector('span').onclick = () => {
+      selectedFile = f;
+      runBtn.disabled = false;
+      refreshFiles();
+    };
+    div.querySelector('button').onclick = async (e) => {
+      e.stopPropagation();
+      await fetch('/api/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({filename: f})
+      });
+      if (selectedFile === f) { selectedFile = null; runBtn.disabled = true; }
+      refreshFiles();
+    };
+    fileList.appendChild(div);
+  });
+}
+
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  setStatus('dang upload...');
+  const res = await fetch('/api/upload', { method: 'POST', body: formData });
+  const data = await res.json();
+  if (data.error) {
+    log('Loi upload: ' + data.error, 'err-line');
+  } else {
+    log('$ upload ' + data.filename, 'prompt-line');
+    log(data.message);
+    selectedFile = data.filename;
+    runBtn.disabled = false;
+  }
+  fileInput.value = '';
+  setStatus('san sang');
+  refreshFiles();
+});
+
+runBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  log('$ python3 ' + selectedFile, 'prompt-line');
+  setStatus('dang chay...');
+  runBtn.disabled = true;
+  const res = await fetch('/api/run', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({filename: selectedFile})
+  });
+  const data = await res.json();
+  log(data.output || data.error, data.returncode ? 'err-line' : '');
+  runBtn.disabled = false;
+  setStatus('san sang');
+});
+
+clearBtn.addEventListener('click', () => { output.innerHTML = ''; });
+
+pyverBtn.addEventListener('click', () => runShell('python3 --version && pip --version'));
+
+async function runShell(cmd) {
+  log('$ ' + cmd, 'prompt-line');
+  setStatus('dang chay...');
+  const res = await fetch('/api/exec', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({cmd})
+  });
+  const data = await res.json();
+  log(data.output || data.error, data.returncode ? 'err-line' : '');
+  setStatus('san sang');
+}
+
+cmdInput.addEventListener('keydown', async (e) => {
+  if (e.key !== 'Enter') return;
+  const cmd = cmdInput.value.trim();
+  if (!cmd) return;
+  cmdInput.value = '';
+
+  if (cmd.startsWith('pip install ')) {
+    const pkg = cmd.replace('pip install ', '').trim();
+    log('$ ' + cmd, 'prompt-line');
+    setStatus('dang cai dat...');
+    const res = await fetch('/api/pip', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({package: pkg})
+    });
+    const data = await res.json();
+    log(data.output || data.error, data.returncode ? 'err-line' : '');
+    setStatus('san sang');
+    return;
+  }
+
+  runShell(cmd);
+});
+
+refreshFiles();
+</script>
+
+</body>
+</html>
